@@ -1,0 +1,74 @@
+import tkinter as tk
+import ctypes
+from tkinter import filedialog, messagebox
+from tkinter.ttk import Combobox
+import psutil
+
+# Function to browse and select the DLL file
+def browse_dll():
+    file_path = filedialog.askopenfilename(filetypes=[("DLL files", "*.dll")])
+    if file_path:
+        dll_entry.delete(0, tk.END)
+        dll_entry.insert(tk.END, file_path)
+
+# Function to inject the DLL into the selected application
+def inject_dll():
+    selected_app = app_dropdown.get()
+    dll_path = dll_entry.get()
+
+    try:
+        # Load the DLL using ctypes
+        dll_handle = ctypes.WinDLL(dll_path)
+
+        # Get the process ID of the selected application
+        process_id = app_processes[selected_app]
+
+        # Perform the injection into the selected application
+        target_app = ctypes.windll.kernel32.OpenProcess(ctypes.c_int(0x1F0FFF), ctypes.c_int(0), ctypes.c_int(process_id))
+        if target_app != 0:
+            injection_result = ctypes.windll.kernel32.FreeLibrary(target_app)
+            if injection_result == 0:
+                messagebox.showinfo("Injection Status", "DLL injected successfully!")
+            else:
+                messagebox.showerror("Injection Error", "Failed to inject DLL!")
+        else:
+            messagebox.showerror("Injection Error", "Target application not found!")
+
+    except Exception as e:
+        messagebox.showerror("Injection Error", str(e))
+
+# Create the main application window
+root = tk.Tk()
+root.title("DLL Injector")
+
+# Create a drop-down box for selecting the target application
+app_label = tk.Label(root, text="Select Application:")
+app_label.pack()
+
+# Get the list of active processes and their names
+app_processes = {}
+for proc in psutil.process_iter(['pid', 'name']):
+    if proc.info['name'] not in app_processes.values():
+        app_processes[proc.info['name']] = proc.info['pid']
+
+app_list = list(app_processes.keys())
+app_dropdown = Combobox(root, values=app_list)
+app_dropdown.pack()
+
+# Create a button to browse and select the DLL file
+browse_button = tk.Button(root, text="Browse DLL", command=browse_dll)
+browse_button.pack()
+
+# Create an entry field to display the selected DLL path
+dll_label = tk.Label(root, text="Selected DLL:")
+dll_label.pack()
+
+dll_entry = tk.Entry(root, width=50)
+dll_entry.pack()
+
+# Create a button to initiate the DLL injection
+inject_button = tk.Button(root, text="Inject DLL", command=inject_dll)
+inject_button.pack()
+
+# Start the application's main event loop
+root.mainloop()
